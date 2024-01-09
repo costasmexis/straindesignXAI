@@ -119,7 +119,7 @@ def get_flux_time_series(model, ext_metabolites, grid, user_params):
     tspan, delt = grid
 
     ## Create a panda series containing the cell concentation for each time point
-    cell = pd.Series(index=tspan)
+    cell = pd.Series(index=tspan, dtype='float64')
     cell0 = user_params['initial_OD'] # in gDW/L
     t0 = user_params['timestart']
     cell[t0] = cell0
@@ -141,9 +141,9 @@ def get_flux_time_series(model, ext_metabolites, grid, user_params):
     
     ## Create storage for timeseries of models and solutions
     # Model time series
-    model_TS = pd.Series(index=tspan)
+    model_TS = pd.Series(index=tspan, dtype='float64')
     # Solution time series
-    solution_TS = pd.Series(index=tspan)
+    solution_TS = pd.Series(index=tspan, dtype='float64')
 
     
     ## Main for loop solving the model for each time step and adding the corresponding OD and external metabolites created
@@ -204,7 +204,7 @@ def getBEFluxes(model_TS, design, solution_TS, grid):
     #n_instances = design.shape[0] - 1
         
     ## Time series containing the flux solution obtained through MOMA
-    solutionsMOMA_TS = pd.Series(index=tspan)
+    solutionsMOMA_TS = pd.Series(index=tspan, dtype='float64')
 
     ## Main loop: for each strain and at each time point, find new flux profile through MOMA    
     #for i in range(0,n_instances):
@@ -245,7 +245,7 @@ def integrate_fluxes(solution_TS, model_TS, ext_metabolites, grid, user_params):
     tspan, delt = grid
 
     ## Create a panda series containing the cell concentation for each time point
-    cell = pd.Series(index=tspan)
+    cell = pd.Series(index=tspan, dtype='float64')
     cell0 = user_params['initial_OD'] # in gDW/L
     t0 = user_params['timestart']
     cell[t0] = cell0
@@ -449,8 +449,8 @@ def write_in_al_format(time_series_omics_data, omics_type, user_params, label=''
 
             with open(al_file_name, 'w') as ofh:
                 dataframe = pd.DataFrame.from_dict(omics_dict, orient='index', columns=[f'{omics_type}_value'])
-                for index, series in dataframe.iteritems():
-                    for id, value in series.iteritems():
+                for index, series in dataframe.items():
+                    for id, value in series.items():
                         ofh.write(f'{id},{value}\n')
     except:
         print('Error in writing in Arrowland format')
@@ -478,8 +478,8 @@ def write_in_edd_format(time_series_omics_data, omics_type, user_params, line_na
             fh.write(f'Line Name,Measurement Type,Time,Value,Units\n')
             for timepoint, omics_dict in time_series_omics_data.items():
                 dataframe = pd.DataFrame.from_dict(omics_dict, orient='index', columns=[f'{omics_type}_value'])
-                for index, series in dataframe.iteritems():
-                    for id, value in series.iteritems():
+                for index, series in dataframe.items():
+                    for id, value in series.items():
                         fh.write((f'{line_name},{id},{timepoint},{value},{unit_dict[omics_type]}\n'))
     except Exception as ex:
         print("Error in writing file!")
