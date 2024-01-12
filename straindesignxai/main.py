@@ -29,7 +29,7 @@ class DataLoader:
         self.y = self.df[self.response_var].values.ravel()
         print(f"Dataset size: {self.df.shape}")
         
-    def train_xgb(self):
+    def train_xgb(self, n_iter=100):
         param_grid = {
             'n_estimators': [5, 10, 25, 50, 100, 200, 300],
             'learning_rate': [0.1, 0.01, 0.001],
@@ -39,7 +39,7 @@ class DataLoader:
             'gamma': [0.001, 0.01, 0.1, 0, 1, 5]
         }
 
-        random_search = RandomizedSearchCV(XGBRegressor(), param_grid, n_iter=250, 
+        random_search = RandomizedSearchCV(XGBRegressor(), param_grid, n_iter=n_iter, 
                                            scoring='neg_mean_squared_error', n_jobs=-1, cv=5)
         random_search.fit(self.X, self.y)
         self.model = random_search.best_estimator_
@@ -96,7 +96,7 @@ class DataLoader:
         print(f"Optimal number of clusters: {n_cluster}")
         kmeans = KMeans(n_clusters=n_cluster, n_init='auto', random_state=42).fit(self.shap_df)
         self.shap_df['cluster'] = kmeans.labels_
-        self.shap_df[self.response_var] = self.y
+        self.shap_df[self.response_var[0]] = self.y
         self.df['cluster'] = kmeans.labels_
         
     def study_clusters(self, method='mean'):
