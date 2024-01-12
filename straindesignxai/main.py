@@ -2,10 +2,11 @@ import pandas as pd
 import numpy as np
 import shap
 import matplotlib.pyplot as plt
-from sklearn.model_selection import cross_val_score
-
+from sklearn.model_selection import cross_val_score, RandomizedSearchCV
 from sklearn.cluster import KMeans
+from xgboost import XGBRegressor
 from yellowbrick.cluster import KElbowVisualizer
+
 from IPython.display import display
 
 class DataLoader:
@@ -27,6 +28,23 @@ class DataLoader:
         self.X = self.df[self.input_var]
         self.y = self.df[self.response_var].values.ravel()
         print(f"Dataset size: {self.df.shape}")
+        
+    def train_xgb(self):
+        param_grid = {
+            'n_estimators': [5, 10, 25, 50, 100, 200, 300],
+            'learning_rate': [0.1, 0.01, 0.001],
+            'max_depth': [3, 5, 7, 12],
+            'subsample': [0.8, 0.9, 1.0],
+            'colsample_bytree': [0.8, 0.9, 1.0],
+            'gamma': [0.001, 0.01, 0.1, 0, 1, 5]
+        }
+
+        random_search = RandomizedSearchCV(XGBRegressor(), param_grid, n_iter=250, 
+                                           scoring='neg_mean_squared_error', n_jobs=-1, cv=5)
+        random_search.fit(self.X, self.y)
+        self.model = random_search.best_estimator_
+        self.model.fit(self.X, self.y)
+
                 
     def get_model(self, model, score=True):
         self.model = model.fit(self.X, self.y)
@@ -63,8 +81,7 @@ class DataLoader:
     def __plot_shap_summary(self):
         shap.summary_plot(self.shap_values, self.X, plot_type="bar")
         shap.summary_plot(self.shap_values, self.X)
-        order = np.argsort(self.model.predict(self.X))
-        shap.plots.heatmap(self.shap_values, instance_order=order)
+        shap.plots.heatmap(self.shap_values, instance_order=self.shap_values.sum(1))
         plt.show()
     
     def shap_scatter(self, feature: str):
@@ -79,7 +96,7 @@ class DataLoader:
         print(f"Optimal number of clusters: {n_cluster}")
         kmeans = KMeans(n_clusters=n_cluster, n_init='auto', random_state=42).fit(self.shap_df)
         self.shap_df['cluster'] = kmeans.labels_
-        self.shap_df['y'] = self.y
+        self.shap_df[self.response_var] = self.y
         self.df['cluster'] = kmeans.labels_
         
     def study_clusters(self, method='mean'):
