@@ -43,17 +43,33 @@ class DataLoader:
         ax.set_title('Cross Validation Predictions')
         plt.show()
         
+    def pdplot(self, feature: str, ice=False):
+        shap.partial_dependence_plot(
+            feature,
+            self.model.predict,
+            self.X,
+            ice=ice,
+            model_expected_value=True,
+            feature_expected_value=True,
+        )
+    
     def get_shap_values(self, plot=True):
         explainer = shap.TreeExplainer(self.model, self.X)
         self.shap_values = explainer(self.X)
         self.shap_df = pd.DataFrame(self.shap_values.values, columns=self.X.columns)
         if plot:
-            shap.summary_plot(self.shap_values, self.X, plot_type="bar")
-            shap.summary_plot(self.shap_values, self.X)
-            order = np.argsort(self.model.predict(self.X))
-            shap.plots.heatmap(self.shap_values, instance_order=order)
-            plt.show()
-            
+            self.__plot_shap_summary()
+
+    def __plot_shap_summary(self):
+        shap.summary_plot(self.shap_values, self.X, plot_type="bar")
+        shap.summary_plot(self.shap_values, self.X)
+        order = np.argsort(self.model.predict(self.X))
+        shap.plots.heatmap(self.shap_values, instance_order=order)
+        plt.show()
+    
+    def shap_scatter(self, feature: str):
+        shap.plots.scatter(self.shap_values[:, feature])
+                
     def supervised_clustering(self, plot=False):
         model = KMeans(n_init='auto')
         visualizer = KElbowVisualizer(model, k=(2,12))
@@ -78,6 +94,6 @@ class DataLoader:
         elif method == 'std':
             display(self.df.groupby('cluster').std())
             
-            
+    
     
 
