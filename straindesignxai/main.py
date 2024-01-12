@@ -2,37 +2,32 @@ import pandas as pd
 import numpy as np
 import shap
 import matplotlib.pyplot as plt
-import optuna
 from sklearn.model_selection import cross_val_score
 
-from xgboost import XGBRegressor
 from sklearn.cluster import KMeans
 from yellowbrick.cluster import KElbowVisualizer
+from IPython.display import display
 
 class DataLoader:
-    def __init__(self, input_csv: str, target: str):
+    def __init__(self, input_csv: str, input_vars: list, response_var: list):
         self.input_csv = input_csv
-        self.target = target
+        self.input_var = input_vars
+        self.response_var = response_var
         self.df = None
         self.X = None
         self.y = None
         self.model = None
         self.shap_values = None
         self.shap_df = None
-        self.__get_data()
-                
-    def __get_data(self):
-        _ = pd.read_csv(self.input_csv)
-        cols = _['Type'].unique()
-        idx = _['Line Name'].unique()
-        self.df = pd.DataFrame(index=idx, columns=cols)
-        for i in idx:
-            for j in cols:
-                self.df.loc[i, j] = _[(_['Line Name'] == i) & (_['Type'] == j)]['Value'].values[0]
-        self.df = self.df.astype(float)
-        self.X = self.df.drop(self.target, axis=1)
-        self.y = self.df[self.target]
+        self.__get_data_edd()
     
+    def __get_data_edd(self):
+        self.df = pd.read_csv(self.input_csv, index_col=0)
+        self.df = self.df[self.input_var + self.response_var]
+        self.X = self.df[self.input_var]
+        self.y = self.df[self.response_var].values.ravel()
+        print(f"Dataset size: {self.df.shape}")
+                
     def get_model(self, model, score=True):
         self.model = model.fit(self.X, self.y)
         if score:
@@ -69,10 +64,20 @@ class DataLoader:
         kmeans = KMeans(n_clusters=n_cluster, n_init='auto', random_state=42).fit(self.shap_df)
         self.shap_df['cluster'] = kmeans.labels_
         self.shap_df['y'] = self.y
-        self.df['cluster'] = self.shap_df['cluster']
+        self.df['cluster'] = kmeans.labels_
         
-    def __str__(self):
-        return f"Dataset size: {self.df.shape}"
-    
+    def study_clusters(self, method='mean'):
+        print('Number of elements in each cluster: ')
+        print(self.df['cluster'].value_counts())
+        if method == 'mean':
+            display(self.df.groupby('cluster').mean())
+        elif method == 'median':
+            display(self.df.groupby('cluster').median())
+        elif method == 'most_frequent':
+            display(self.df.groupby('cluster').agg(lambda x: x.value_counts().index[0]))
+        elif method == 'std':
+            display(self.df.groupby('cluster').std())
+            
+            
     
 
