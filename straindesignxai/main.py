@@ -84,8 +84,11 @@ class DataLoader:
         shap.plots.heatmap(self.shap_values, instance_order=self.shap_values.sum(1))
         plt.show()
     
-    def shap_scatter(self, feature: str):
-        shap.plots.scatter(self.shap_values[:, feature])
+    def shap_scatter(self, feature: str, color=None):
+        if color:
+            shap.plots.scatter(self.shap_values[:, feature], color=self.shap_values[:, color])
+        else:
+            shap.plots.scatter(self.shap_values[:, feature])
                 
     def supervised_clustering(self, plot=False):
         model = KMeans(n_init='auto')
