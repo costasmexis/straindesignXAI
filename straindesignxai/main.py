@@ -80,7 +80,14 @@ class DataLoader:
         ax.set_title("Cross Validation Predictions")
         # Calculate also MAE and R2
         r2 = r2_score(self.y, self.model.predict(self.X))
-        ax.text(0.95, 0.05, f"R2 = {r2:.2f}", ha='right', va='center', transform=ax.transAxes)
+        ax.text(
+            0.95,
+            0.05,
+            f"R2 = {r2:.2f}",
+            ha="right",
+            va="center",
+            transform=ax.transAxes,
+        )
         plt.show()
 
     def pdplot(self, feature: str, ice=False):
@@ -128,14 +135,23 @@ class DataLoader:
         self.shap_df[self.response_var[0]] = self.y
         self.df["cluster"] = kmeans.labels_
 
-    def study_clusters(self, method="mean"):
-        print("Number of elements in each cluster: ")
-        print(self.df["cluster"].value_counts())
+    def study_clusters(self, method="mean", verbose=True):
+        if verbose:
+            print("Number of elements in each cluster: ")
+            print(self.df["cluster"].value_counts())
         if method == "mean":
-            display(self.df.groupby("cluster").mean())
+            if verbose:
+                display(self.df.groupby("cluster").mean())
+            return self.df.groupby("cluster").mean()
         elif method == "median":
-            display(self.df.groupby("cluster").median())
+            if verbose:
+                display(self.df.groupby("cluster").median())
+            return self.df.groupby("cluster").median()
         elif method == "most_frequent":
-            display(self.df.groupby("cluster").agg(lambda x: x.value_counts().index[0]))
+            if verbose:
+                display(self.df.groupby("cluster").agg(lambda x: x.value_counts().index[0]))
+            return self.df.groupby("cluster").agg(lambda x: x.value_counts().index[0])
         elif method == "std":
-            display(self.df.groupby("cluster").std())
+            if verbose:
+                display(self.df.groupby("cluster").std())
+            return self.df.groupby("cluster").std()
