@@ -89,3 +89,4 @@ def cv_on_whole_train_set(data, model, input, response) -> None:
     y = data[response]
     y_pred = cross_val_predict(model, X, y, cv=5)
     plot_pred_vs_actual(y, y_pred, 'CV')
+
