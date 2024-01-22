@@ -9,7 +9,7 @@ def plot_distribution_of_designs(df):
     labels = ['KO', 'NoMod', 'UP']
     colors = ['#019600', 'grey', '#219AD8']
         
-    plt.style.use('seaborn-white')
+    # plt.style.use('seaborn-white')
     
     dataframe = df.copy()
     reactions = dataframe.columns
