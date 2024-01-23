@@ -23,6 +23,7 @@ class DataLoader:
         self.model = None
         self.shap_values = None
         self.shap_df = None
+        self.bounds = None
         self.__get_data_edd()
 
     def __get_data_edd(self):
@@ -31,6 +32,23 @@ class DataLoader:
         self.X = self.df[self.input_var]
         self.y = self.df[self.response_var].values.ravel()
         print(f"Dataset size: {self.df.shape}")
+        
+    def get_bounds(self):
+        self.bounds = pd.DataFrame(columns=self.input_var)  
+        for col in self.input_var:
+            MAX = self.X[col].max()
+            MIN = self.X[col].min()
+            DELTA = MAX - MIN
+            espilon = 0.05
+            lb = MIN - espilon * DELTA
+            ub = MAX + espilon * DELTA
+           
+            if lb < 0:
+                lb = 0
+            self.bounds.loc["min", col] = lb 
+            
+            self.bounds.loc["max", col] = ub
+        
 
     def train_xgb(self, n_iter=100):
         param_grid = {
@@ -149,7 +167,9 @@ class DataLoader:
             return self.df.groupby("cluster").median()
         elif method == "most_frequent":
             if verbose:
-                display(self.df.groupby("cluster").agg(lambda x: x.value_counts().index[0]))
+                display(
+                    self.df.groupby("cluster").agg(lambda x: x.value_counts().index[0])
+                )
             return self.df.groupby("cluster").agg(lambda x: x.value_counts().index[0])
         elif method == "std":
             if verbose:
