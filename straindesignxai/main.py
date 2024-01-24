@@ -27,10 +27,16 @@ class DataLoader:
         self.__get_data_edd()
 
     def __get_data_edd(self):
-        self.df = pd.read_csv(self.input_csv, index_col=0)
-        self.df = self.df[self.input_var + self.response_var]
-        self.X = self.df[self.input_var]
-        self.y = self.df[self.response_var].values.ravel()
+        try:
+            self.df = pd.read_csv(self.input_csv, index_col=0)
+            self.df = self.df[self.input_var + self.response_var]
+            self.X = self.df[self.input_var]
+            self.y = self.df[self.response_var].values.ravel()
+        except KeyError:
+            self.df = pd.read_csv(self.input_csv)
+            self.df = self.df[self.input_var + self.response_var]
+            self.X = self.df[self.input_var]
+            self.y = self.df[self.response_var].values.ravel()
         print(f"Dataset size: {self.df.shape}")
         
     def get_bounds(self):
