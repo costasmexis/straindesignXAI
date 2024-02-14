@@ -1,99 +1,128 @@
-# import all above models
-from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
-from sklearn.linear_model import LinearRegression
-from sklearn.naive_bayes import GaussianNB
+from catboost import CatBoostRegressor
+from lightgbm import LGBMRegressor
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.linear_model import Lasso, LinearRegression, Ridge
+from sklearn.model_selection import (
+    GridSearchCV,
+    KFold,
+    RandomizedSearchCV,
+    cross_val_score,
+)
 from sklearn.neighbors import KNeighborsRegressor
-from sklearn.neural_network import MLPRegressor
 from sklearn.svm import SVR
 from xgboost import XGBRegressor
-from sklearn.model_selection import GridSearchCV, cross_val_score, KFold, train_test_split
-from tqdm import tqdm
 import matplotlib.pyplot as plt
-from sklearn.metrics import mean_absolute_error, mean_squared_error
+
+# Linear Regression
+linear_param_grid = {
+    'fit_intercept': [True, False],
+}
+
+# Ridge Regression
+ridge_param_grid = {
+    'alpha': [0.001, 0.01, 0.1, 1.0, 10.0, 100],
+    'fit_intercept': [True, False],
+}
+
+# Lasso Regression
+lasso_param_grid = {
+    'alpha': [0.001, 0.01, 0.1, 1.0, 10.0, 100],
+    'fit_intercept': [True, False],
+}
+
+# K-Nearest Neighbors Regression
+knn_param_grid = {
+    'n_neighbors': [3, 5, 7, 10, 15, 20],
+    'weights': ['uniform', 'distance'],
+    'algorithm': ['auto', 'ball_tree', 'kd_tree', 'brute']
+}
+
+# Random Forest Regression
+rf_param_grid = {
+    'n_estimators': [5, 10, 20, 25, 50],
+    'max_depth': [None, 5, 10],
+    'min_samples_split': [2, 5, 10],
+    'min_samples_leaf': [1, 2, 4]
+}
+
+# Support Vector Regression
+svr_param_grid = {
+    'kernel': ['linear', 'rbf'],
+    'C': [0.1, 1.0, 10.0],
+    'epsilon': [0.1, 0.01, 0.001],
+    'gamma': [1, 0.1, 0.01, 0.001]
+}
+
+# CatBoost Regression
+catboost_param_grid = {
+    'iterations': [10, 30, 50],
+    'learning_rate': [0.01, 0.05, 0.1, 1.0],
+    'depth': [4, 6, 8, 10, 12]
+}
+
+# LightGBM Regression
+lgbm_param_grid = {
+    'boosting_type': ['gbdt', 'dart', 'goss'],
+    'num_leaves': [3, 5, 12, 20],
+    'learning_rate': [0.01, 0.1, 1.0, 10.0],
+    'n_estimators': [5, 10, 20, 50]
+}
+
+# XGBoost Regression
+xgb_param_grid = {
+    'max_depth': [3, 5, 7, 10],
+    'learning_rate': [0.01, 0.1, 1.0],
+    'n_estimators': [10, 25, 30, 50, 100],
+    'min_child_weight': [1, 3, 5],
+    'gamma': [0.0, 0.1, 0.2],
+    'subsample': [0.8, 1.0],
+    'colsample_bytree': [0.8, 1.0],
+    'reg_alpha': [0.0, 0.1, 0.5],
+    'reg_lambda': [0.0, 0.1, 0.5]
+}
 
 
-def model_selection():
-    '''
-        Define a function to perform the nested Cross Validation
-    '''
+# Nested Cross-Validation
+def nestedCV(model, p_grid, X, y):
+    print(model.__class__.__name__)
+    nested_scores = []
+    inner_cv = KFold(n_splits=3, shuffle=True, random_state=42)
+    outer_cv = KFold(n_splits=5, shuffle=True, random_state=42)
+    grid = RandomizedSearchCV(estimator=model, scoring='neg_mean_absolute_error', param_distributions=p_grid, cv=inner_cv, n_iter=100)
+    nested_score = cross_val_score(grid, X=X, y=y, scoring='neg_mean_absolute_error', cv=outer_cv)
+    nested_scores.append(list(nested_score))
+    return model, nested_scores
 
-    regressors = {
-        'LR': LinearRegression(),
-        'RF': RandomForestRegressor(),
-        'SVR': SVR(),
-        'MLP': MLPRegressor(),
-        'XGB': XGBRegressor(),
-        'kNN': KNeighborsRegressor(),
-        'GB': GradientBoostingRegressor(),
-    }
-
-    # Define hyperparameter grid for each model
-    param_grid = {
-        'LR': {'fit_intercept': [True, False]},
-        'RF': {'n_estimators': [3, 5, 10, 20, 50], 'max_depth': [None, 2, 3, 5, 10, 20]},
-        'SVR': {'kernel': ['linear', 'rbf'], 'C': [0.1, 1, 10], 'gamma': [0.001, 0.01, 0.1, 1]},
-        'MLP': {'hidden_layer_sizes': [(25,), (10,)], 'activation': ['identity', 'logistic', 'tanh', 'relu']},
-        'XGB': {'n_estimators': [5, 10, 20, 50], 'max_depth': [None, 2, 3, 5, 10, 20]},
-        'kNN': {'n_neighbors': [1, 2, 3, 5, 10, 20, 50], 'weights': ['uniform', 'distance']},
-        'GB': {'n_estimators': [10, 20, 50], 'max_depth': [None, 2, 3, 5, 10]},
-    }
-
-    def nestedCV(model, p_grid, X, y):
-        NUM_TRIALS = 3
-
-        # Arrays to store scores
-        nested_scores = []
-
-        # Loop for each trial
-        for i in tqdm(range(NUM_TRIALS)):
-            
-            inner_cv = KFold(n_splits=5, shuffle=True, random_state=i)
-            outer_cv = KFold(n_splits=5, shuffle=True, random_state=i)
-
-            # Nested CV with parameter optimization
-            clf = GridSearchCV(estimator=model, scoring='neg_mean_absolute_error', param_grid=p_grid, 
-                                    cv=inner_cv)
-            
-            nested_score = cross_val_score(clf, X=X, y=y, 
-                                        scoring='neg_mean_absolute_error', cv=outer_cv)
-            
-            nested_scores.append(list(nested_score))
-        return clf, nested_scores
-
-    nested_LR, nested_LR_scores = nestedCV(regressors['LR'], param_grid['LR'], df_A[INPUT_VARS], df_A[RESPONSE_VARS])
-    nested_RF, nested_RF_scores = nestedCV(regressors['RF'], param_grid['RF'], df_A[INPUT_VARS], df_A[RESPONSE_VARS])
-    nested_SVR, nested_SVR_scores = nestedCV(regressors['SVR'], param_grid['SVR'], df_A[INPUT_VARS], df_A[RESPONSE_VARS])
-    nested_MLP, nested_MLP_scores = nestedCV(regressors['MLP'], param_grid['MLP'], df_A[INPUT_VARS], df_A[RESPONSE_VARS])
-    nested_XGB, nested_XGB_scores = nestedCV(regressors['XGB'], param_grid['XGB'], df_A[INPUT_VARS], df_A[RESPONSE_VARS])
-    nested_kNN, nested_kNN_scores = nestedCV(regressors['kNN'], param_grid['kNN'], df_A[INPUT_VARS], df_A[RESPONSE_VARS])
-    nested_GB, nested_GB_scores = nestedCV(regressors['GB'], param_grid['GB'], df_A[INPUT_VARS], df_A[RESPONSE_VARS])
+# Model Selection using NCV
+def modelSelection(X_train, y_train):
+    nested_catboost, nested_catboost_scores = nestedCV(CatBoostRegressor(verbose=False), catboost_param_grid, X_train, y_train)
+    nested_lgbm, nested_lgbm_scores = nestedCV(LGBMRegressor(), lgbm_param_grid, X_train, y_train)
+    nested_xgb, nested_xgb_scores = nestedCV(XGBRegressor(n_jobs=-1), xgb_param_grid, X_train, y_train)
+    nested_LR, nested_LR_scores = nestedCV(LinearRegression(), linear_param_grid, X_train, y_train)
+    nested_ridge, nested_ridge_scores = nestedCV(Ridge(), ridge_param_grid, X_train, y_train)
+    nested_lasso, nested_lasso_scores = nestedCV(Lasso(), lasso_param_grid, X_train, y_train)
+    nested_knn, nested_knn_scores = nestedCV(KNeighborsRegressor(), knn_param_grid, X_train, y_train)
+    nested_rf, nested_rf_scores = nestedCV(RandomForestRegressor(), rf_param_grid, X_train, y_train)
+    nested_svr, nested_svr_scores = nestedCV(SVR(), svr_param_grid, X_train, y_train)
 
     nested_scores_LR = [-item for sublist in nested_LR_scores for item in sublist]
-    nested_scores_RF = [-item for sublist in nested_RF_scores for item in sublist]
-    nested_scores_SVR = [-item for sublist in nested_SVR_scores for item in sublist]
-    nested_scores_MLP = [-item for sublist in nested_MLP_scores for item in sublist]
-    nested_scores_XGB = [-item for sublist in nested_XGB_scores for item in sublist]
-    nested_scores_kNN = [-item for sublist in nested_kNN_scores for item in sublist]
-    nested_scores_GB = [-item for sublist in nested_GB_scores for item in sublist]
-        
-    # Create a box plot for the nested scores
-    def boxplot(save=True):
-        plt.figure(figsize=(12, 8))
-        positions = [i for i in range(1, len(regressors))]
-        plt.boxplot([nested_scores_LR, nested_scores_RF, nested_scores_SVR, nested_scores_MLP, nested_scores_XGB, nested_scores_kNN, nested_scores_GB], labels=['LR', 'RF', 'SVR', 'MLP', 'XGB', 'kNN', 'GB'])
-        plt.ylabel('MAE')
-        # save figure
-        plt.savefig('../figures/boxplot_nestedCV.png')
-        plt.show()
+    nested_scores_ridge = [-item for sublist in nested_ridge_scores for item in sublist]
+    nested_scores_lasso = [-item for sublist in nested_lasso_scores for item in sublist]
+    nested_scores_knn = [-item for sublist in nested_knn_scores for item in sublist]
+    nested_scores_rf = [-item for sublist in nested_rf_scores for item in sublist]
+    nested_scores_svr = [-item for sublist in nested_svr_scores for item in sublist]
+    nested_scores_catboost = [-item for sublist in nested_catboost_scores for item in sublist]
+    nested_scores_lgbm = [-item for sublist in nested_lgbm_scores for item in sublist]
+    nested_scores_xgb = [-item for sublist in nested_xgb_scores for item in sublist]
 
-        print(f'Mean MAE for LR: {sum(nested_scores_LR)/len(nested_scores_LR)}')
-        print(f'Mean MAE for RF: {sum(nested_scores_RF)/len(nested_scores_RF)}')
-        print(f'Mean MAE for SVR: {sum(nested_scores_SVR)/len(nested_scores_SVR)}')
-        print(f'Mean MAE for MLP: {sum(nested_scores_MLP)/len(nested_scores_MLP)}')
-        print(f'Mean MAE for XGB: {sum(nested_scores_XGB)/len(nested_scores_XGB)}')
-        print(f'Mean MAE for kNN: {sum(nested_scores_kNN)/len(nested_scores_kNN)}')
-        print(f'Mean MAE for GB: {sum(nested_scores_GB)/len(nested_scores_GB)}')
+    # Combine all nested scores
+    nested_scores = [nested_scores_LR, nested_scores_ridge, nested_scores_lasso, nested_scores_knn, nested_scores_rf, nested_scores_svr, nested_scores_catboost, nested_scores_lgbm, nested_scores_xgb]
 
-    boxplot()
+    # Create a boxplot
+    plt.figure(figsize=(10,8))
+    plt.boxplot(nested_scores, labels=["LR", "Ridge", "Lasso", "KNN", "RF", "SVR", "CatBoost", "LightGBM", "XGB"])
+    plt.xlabel("Models")
+    plt.ylabel("Nested Scores")
+    plt.title("Nested Scores of All Models")
+    plt.show()
     
-    # return nested_scores_LR, nested_scores_RF, nested_scores_SVR, nested_scores_MLP, nested_scores_XGB, nested_scores_kNN, nested_scores_GB
