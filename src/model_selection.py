@@ -12,6 +12,8 @@ from sklearn.neighbors import KNeighborsRegressor
 from sklearn.svm import SVR
 from xgboost import XGBRegressor
 import matplotlib.pyplot as plt
+from tqdm import tqdm
+
 
 # Linear Regression
 linear_param_grid = {
@@ -48,7 +50,7 @@ rf_param_grid = {
 # Support Vector Regression
 svr_param_grid = {
     'kernel': ['linear', 'rbf'],
-    'C': [0.1, 1.0, 10.0],
+    'C': [0.01, 0.1, 1.0, 5, 10.0],
     'epsilon': [0.1, 0.01, 0.001],
     'gamma': [1, 0.1, 0.01, 0.001]
 }
@@ -83,14 +85,15 @@ xgb_param_grid = {
 
 
 # Nested Cross-Validation
-def nestedCV(model, p_grid, X, y):
+def nestedCV(model, p_grid, X, y, n_iter=100, round=3):
     print(model.__class__.__name__)
     nested_scores = []
-    inner_cv = KFold(n_splits=3, shuffle=True, random_state=42)
-    outer_cv = KFold(n_splits=5, shuffle=True, random_state=42)
-    grid = RandomizedSearchCV(estimator=model, scoring='neg_mean_absolute_error', param_distributions=p_grid, cv=inner_cv, n_iter=100)
-    nested_score = cross_val_score(grid, X=X, y=y, scoring='neg_mean_absolute_error', cv=outer_cv)
-    nested_scores.append(list(nested_score))
+    for i in tqdm(range(round)):
+        inner_cv = KFold(n_splits=3, shuffle=True, random_state=i)
+        outer_cv = KFold(n_splits=5, shuffle=True, random_state=i)
+        grid = RandomizedSearchCV(estimator=model, scoring='neg_mean_absolute_error', param_distributions=p_grid, cv=inner_cv, n_iter=n_iter, n_jobs=-1, verbose=0)
+        nested_score = cross_val_score(grid, X=X, y=y, scoring='neg_mean_absolute_error', cv=outer_cv)
+        nested_scores.append(list(nested_score))
     return model, nested_scores
 
 # Model Selection using NCV
